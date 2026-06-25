@@ -1,0 +1,139 @@
+package com.cognizant.logitrack.serviceImplementation;
+
+import com.cognizant.logitrack.service.FreightOrderService;
+import com.cognizant.logitrack.exception.BadRequestException;
+import com.cognizant.logitrack.exception.ResourceNotFoundException;
+import com.cognizant.logitrack.dto.FreightOrderDTO;
+import com.cognizant.logitrack.entity.FreightOrder;
+import com.cognizant.logitrack.entity.Route;
+import com.cognizant.logitrack.enums.FreightOrderStatus;
+import com.cognizant.logitrack.enums.RouteStatus;
+import com.cognizant.logitrack.repository.FreightOrderRepository;
+import com.cognizant.logitrack.repository.RouteRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@Slf4j
+public class FreightOrderServiceImpl implements FreightOrderService {
+
+    private final FreightOrderRepository freightOrderRepository;
+    private final RouteRepository routeRepository;
+
+    public FreightOrderServiceImpl(
+            FreightOrderRepository freightOrderRepository,
+            RouteRepository routeRepository
+    ) {
+        this.freightOrderRepository = freightOrderRepository;
+        this.routeRepository = routeRepository;
+    }
+
+    @Override
+    public FreightOrderDTO createFreightOrder(FreightOrderDTO dto) {
+
+        Route route = routeRepository
+                .findFirstByOriginHubIdAndDestinationHubIdAndStatus(
+                        dto.getOriginLocationId(),
+                        dto.getDestinationLocationId(),
+                        RouteStatus.ACTIVE
+                )
+                .orElseThrow(() -> new BadRequestException(
+                        "No active route found for originLocationId: "
+                                + dto.getOriginLocationId()
+                                + " and destinationLocationId: "
+                                + dto.getDestinationLocationId()
+                ));
+
+        FreightOrder order = FreightOrder.builder()
+                .shipperId(dto.getShipperId())
+                .originLocationId(dto.getOriginLocationId())
+                .destinationLocationId(dto.getDestinationLocationId())
+                .route(route)
+                .cargoDescription(dto.getCargoDescription())
+                .weight(dto.getWeight())
+                .volume(dto.getVolume())
+                .requiredDeliveryDate(dto.getRequiredDeliveryDate())
+                .status(FreightOrderStatus.DRAFT)
+                .build();
+
+        FreightOrder saved = freightOrderRepository.save(order);
+
+        log.info("Freight order created: id={}, routeId={}",
+                saved.getFreightOrderId(),
+                route.getRouteId());
+
+        return toDTO(saved);
+    }
+
+    @Override
+    public FreightOrderDTO getById(Integer id) {
+        return toDTO(findEntity(id));
+    }
+
+    @Override
+    public List<FreightOrderDTO> getAllOrders() {
+        return freightOrderRepository.findAll()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<FreightOrderDTO> getByShipper(Integer shipperId) {
+        return freightOrderRepository.findByShipperId(shipperId)
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public FreightOrderDTO updateStatus(Integer id, FreightOrderStatus status) {
+        FreightOrder order = findEntity(id);
+        order.setStatus(status);
+        FreightOrder saved = freightOrderRepository.save(order);
+        log.info("Freight order {} status updated to {}", id, status);
+        return toDTO(saved);
+    }
+
+    @Override
+    public FreightOrderDTO cancelOrder(Integer id) {
+        FreightOrder order = findEntity(id);
+
+        if (order.getStatus() == FreightOrderStatus.DELIVERED) {
+            throw new BadRequestException("Cannot cancel a delivered order");
+        }
+
+        order.setStatus(FreightOrderStatus.CANCELLED);
+        FreightOrder saved = freightOrderRepository.save(order);
+
+        log.info("Freight order {} cancelled", id);
+
+        return toDTO(saved);
+    }
+
+    private FreightOrder findEntity(Integer id) {
+        return freightOrderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Freight order not found with id: " + id));
+    }
+
+    private FreightOrderDTO toDTO(FreightOrder order) {
+        return FreightOrderDTO.builder()
+                .freightOrderId(order.getFreightOrderId())
+                .shipperId(order.getShipperId())
+                .originLocationId(order.getOriginLocationId())
+                .destinationLocationId(order.getDestinationLocationId())
+                .routeId(order.getRoute() != null ? order.getRoute().getRouteId() : null)
+                .cargoDescription(order.getCargoDescription())
+                .weight(order.getWeight())
+                .volume(order.getVolume())
+                .requiredDeliveryDate(order.getRequiredDeliveryDate())
+                .status(order.getStatus())
+                .build();
+    }
+}
