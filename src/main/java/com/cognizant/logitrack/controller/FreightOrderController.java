@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.controller;
 
 import com.cognizant.logitrack.dto.FreightOrderDTO;
+import com.cognizant.logitrack.enums.FreightOrderStatus;
 import com.cognizant.logitrack.service.FreightOrderService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -46,5 +47,14 @@ public class FreightOrderController {
     @GetMapping("/shipper/{shipperId}")
     public ResponseEntity<List<FreightOrderDTO>> getByShipper(@PathVariable Integer shipperId) {
         return ResponseEntity.ok(freightOrderService.getByShipper(shipperId));
+    }
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<FreightOrderDTO> updateStatus(
+            @PathVariable Integer id,
+            @RequestParam String status
+    ) {
+        return ResponseEntity.ok(
+                freightOrderService.updateStatus(id, FreightOrderStatus.valueOf(status))
+        );
     }
 }

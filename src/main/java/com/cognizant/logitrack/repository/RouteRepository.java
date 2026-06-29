@@ -21,4 +21,11 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
             Integer destinationHubId,
             RouteStatus status
     );
+
+    boolean existsByOriginHubIdAndDestinationHubIdAndModeAndStatus(
+            Integer originHubId,
+            Integer destinationHubId,
+            RouteMode mode,
+            RouteStatus status
+    );
 }

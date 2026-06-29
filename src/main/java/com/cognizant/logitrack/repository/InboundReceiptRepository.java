@@ -9,6 +9,8 @@ import java.util.List;
 
 @Repository
 public interface InboundReceiptRepository extends JpaRepository<InboundReceipt, Integer> {
+
     List<InboundReceipt> findByWarehouseId(Integer warehouseId);
+
     List<InboundReceipt> findByStatus(ReceiptStatus status);
 }

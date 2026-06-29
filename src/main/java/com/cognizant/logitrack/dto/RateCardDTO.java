@@ -21,8 +21,11 @@ public class RateCardDTO {
     private Integer routeId;
     @NotNull
     private BigDecimal baseRate;
+    @NotNull
     private String weightSlab;
+    @NotNull
     private LocalDate effectiveDate;
+    @NotNull
     private LocalDate expiryDate;
     private RateCardStatus status;
 }
