@@ -52,54 +52,77 @@ public class ShipmentServiceImpl implements ShipmentService {
 	@Override
 	public ShipmentDTO createShipment(ShipmentDTO dto) {
 
-		FreightOrder freightOrder = freightOrderRepository.findById(dto.getFreightOrderId())
-				.orElseThrow(() -> new BadRequestException("Freight order not found: " + dto.getFreightOrderId()));
+	    FreightOrder freightOrder = freightOrderRepository.findById(dto.getFreightOrderId())
+	            .orElseThrow(() -> new BadRequestException("Freight order not found: " + dto.getFreightOrderId()));
 
-		if (freightOrder.getStatus() == FreightOrderStatus.CANCELLED) {
-			throw new BadRequestException("Cannot create shipment for cancelled freight order");
-		}
+	    if (freightOrder.getStatus() == FreightOrderStatus.CANCELLED) {
+	        throw new BadRequestException("Cannot create shipment for cancelled freight order");
+	    }
 
-		if (freightOrder.getStatus() == FreightOrderStatus.DELIVERED) {
-			throw new BadRequestException("Cannot create shipment for delivered freight order");
-		}
+	    if (freightOrder.getStatus() == FreightOrderStatus.DELIVERED) {
+	        throw new BadRequestException("Cannot create shipment for delivered freight order");
+	    }
 
-		if (freightOrder.getRoute() == null) {
-			throw new BadRequestException("Freight order is not linked with any route");
-		}
+	    if (freightOrder.getRoute() == null) {
+	        throw new BadRequestException("Freight order is not linked with any route");
+	    }
 
-		Carrier carrier = carrierRepository.findById(dto.getCarrierId())
-				.orElseThrow(() -> new BadRequestException("Carrier not found: " + dto.getCarrierId()));
+	    Carrier carrier = carrierRepository.findById(dto.getCarrierId())
+	            .orElseThrow(() -> new BadRequestException("Carrier not found: " + dto.getCarrierId()));
 
-		if (carrier.getStatus() != CarrierStatus.ACTIVE) {
-			throw new BadRequestException("Carrier is not active: " + dto.getCarrierId());
-		}
+	    if (carrier.getStatus() != CarrierStatus.ACTIVE) {
+	        throw new BadRequestException("Carrier is not active: " + dto.getCarrierId());
+	    }
 
-		LocalDate shipmentDate = dto.getDispatchDate() != null ? dto.getDispatchDate() : LocalDate.now();
+	    // ✅ Dispatch Date
+	    LocalDate shipmentDate = dto.getDispatchDate() != null ? dto.getDispatchDate() : LocalDate.now();
 
-		RateCard rateCard = rateCardRepository
-				.findValidRateCard(carrier.getCarrierId(), freightOrder.getRoute().getRouteId(), RateCardStatus.ACTIVE,
-						shipmentDate)
-				.orElseThrow(() -> new BadRequestException("No active rate card found for carrierId: "
-						+ carrier.getCarrierId() + " and routeId: " + freightOrder.getRoute().getRouteId()));
+	    RateCard rateCard = rateCardRepository
+	            .findValidRateCard(
+	                    carrier.getCarrierId(),
+	                    freightOrder.getRoute().getRouteId(),
+	                    RateCardStatus.ACTIVE,
+	                    shipmentDate)
+	            .orElseThrow(() -> new BadRequestException(
+	                    "No active rate card found for carrierId: "
+	                            + carrier.getCarrierId()
+	                            + " and routeId: "
+	                            + freightOrder.getRoute().getRouteId()));
 
-		BigDecimal freightCost = calculateFreightCost(freightOrder, rateCard);
+	    BigDecimal freightCost = calculateFreightCost(freightOrder, rateCard);
 
-		Shipment shipment = Shipment.builder().freightOrder(freightOrder).carrier(carrier).vehicleId(dto.getVehicleId())
-				.driverId(dto.getDriverId()).rateCard(rateCard).freightCost(freightCost).dispatchDate(shipmentDate)
-				.estimatedArrival(dto.getEstimatedArrival()).status(ShipmentStatus.DISPATCHED).build();
+	    // ✅ ✅ FIX: Calculate estimated arrival (IMPORTANT)
+	    LocalDate estimatedArrival = shipmentDate.plusDays(
+	            freightOrder.getRoute().getTransitDays()
+	    );
 
-		Shipment saved = shipmentRepository.save(shipment);
+	    // ✅ Build Shipment object
+	    Shipment shipment = Shipment.builder()
+	            .freightOrder(freightOrder)
+	            .carrier(carrier)
+	            .vehicleId(dto.getVehicleId())
+	            .driverId(dto.getDriverId())
+	            .rateCard(rateCard)
+	            .freightCost(freightCost)
+	            .dispatchDate(shipmentDate)
+	            .estimatedArrival(estimatedArrival)  // ✅ FIXED
+	            .status(ShipmentStatus.DISPATCHED)
+	            .build();
 
-		freightOrder.setStatus(FreightOrderStatus.INTRANSIT);
-		freightOrderRepository.save(freightOrder);
+	    Shipment saved = shipmentRepository.save(shipment);
 
-		log.info("Shipment created: id={}, freightOrderId={}, carrierId={}, rateCardId={}, freightCost={}",
-				saved.getShipmentId(), freightOrder.getFreightOrderId(), carrier.getCarrierId(),
-				rateCard.getRateCardId(), freightCost);
+	    freightOrder.setStatus(FreightOrderStatus.INTRANSIT);
+	    freightOrderRepository.save(freightOrder);
 
-		return toDTO(saved);
+	    log.info("Shipment created: id={}, freightOrderId={}, carrierId={}, rateCardId={}, freightCost={}",
+	            saved.getShipmentId(),
+	            freightOrder.getFreightOrderId(),
+	            carrier.getCarrierId(),
+	            rateCard.getRateCardId(),
+	            freightCost);
+
+	    return toDTO(saved);
 	}
-
 	private BigDecimal calculateFreightCost(FreightOrder freightOrder, RateCard rateCard) {
 
 		if (rateCard.getBaseRate() == null) {

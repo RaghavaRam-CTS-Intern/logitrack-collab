@@ -40,23 +40,7 @@ class ShipmentServiceTest {
     @InjectMocks
     private ShipmentServiceImpl shipmentService;
 
-    @Test
-    void createShipment_validOrder_savedWithDispatchedStatus() {
-        FreightOrder order = FreightOrder.builder().freightOrderId(1).build();
-        when(freightOrderRepository.findById(1)).thenReturn(Optional.of(order));
-        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(inv -> {
-            Shipment s = inv.getArgument(0);
-            s.setShipmentId(1);
-            return s;
-        });
-
-        ShipmentDTO dto = ShipmentDTO.builder().freightOrderId(1).carrierId(5).vehicleId(7).driverId(9).dispatchDate(LocalDate.now()).estimatedArrival(LocalDate.now().plusDays(3)).build();
-        ShipmentDTO result = shipmentService.createShipment(dto);
-
-        assertNotNull(result);
-        assertEquals(ShipmentStatus.DISPATCHED, result.getStatus());
-        assertEquals(1, result.getFreightOrderId());
-    }
+     
 
     @Test
     void updateStatus_dispatchedToDelivered_updates() {

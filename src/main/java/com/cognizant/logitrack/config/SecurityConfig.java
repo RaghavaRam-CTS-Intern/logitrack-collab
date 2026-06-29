@@ -51,7 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/freight-orders").hasAnyRole("SHIPPER", "COORDINATOR", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/freight-orders/*/cancel").hasAnyRole("COORDINATOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/freight-orders/**").hasAnyRole("SHIPPER", "COORDINATOR", "ANALYST", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/shipments").hasAnyRole("COORDINATOR", "ADMIN","SHIPPER")
+                        .requestMatchers(HttpMethod.POST, "/api/shipments").hasAnyRole("COORDINATOR", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/shipments/*/status").hasAnyRole("COORDINATOR", "DRIVER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/shipments/*/events").hasAnyRole("DRIVER", "COORDINATOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/shipments/**").hasAnyRole("SHIPPER", "COORDINATOR", "DRIVER", "ANALYST", "ADMIN")
