@@ -32,7 +32,6 @@ public class ShipmentDTO {
     private Integer rateCardId;
 
     private BigDecimal freightCost;
-    @NotNull
     private LocalDate dispatchDate;
 
     private LocalDate estimatedArrival;

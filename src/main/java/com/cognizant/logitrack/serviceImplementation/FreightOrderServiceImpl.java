@@ -13,7 +13,8 @@ import com.cognizant.logitrack.repository.RouteRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
-
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,6 +36,22 @@ public class FreightOrderServiceImpl implements FreightOrderService {
 
     @Override
     public FreightOrderDTO createFreightOrder(FreightOrderDTO dto) {
+
+        if (dto.getOriginLocationId().equals(dto.getDestinationLocationId())) {
+            throw new BadRequestException("Origin location and destination location cannot be same");
+        }
+
+        if (dto.getWeight() == null || dto.getWeight().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Weight must be greater than zero");
+        }
+
+        if (dto.getVolume() == null || dto.getVolume().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Volume must be greater than zero");
+        }
+
+        if (dto.getRequiredDeliveryDate() == null || dto.getRequiredDeliveryDate().isBefore(LocalDate.now())|| dto.getRequiredDeliveryDate().isEqual(LocalDate.now()) ) {
+            throw new BadRequestException("Required delivery date cannot be in the past or current date");
+        }
 
         Route route = routeRepository
                 .findFirstByOriginHubIdAndDestinationHubIdAndStatus(

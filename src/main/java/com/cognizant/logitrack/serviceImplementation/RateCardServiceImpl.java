@@ -16,6 +16,8 @@ import com.cognizant.logitrack.repository.RouteRepository;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -70,6 +72,47 @@ public class RateCardServiceImpl implements RateCardService {
                             + carrier.getMode()
                             + ", Route mode: "
                             + route.getMode()
+            );
+        }
+
+        if (dto.getBaseRate() == null || dto.getBaseRate().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Base rate must be greater than zero");
+        }
+
+        if (dto.getEffectiveDate() != null && dto.getExpiryDate() != null
+                && dto.getExpiryDate().isBefore(dto.getEffectiveDate())) {
+            throw new BadRequestException("Expiry date cannot be before effective date");
+        }
+
+        if (dto.getExpiryDate() != null && dto.getExpiryDate().isBefore(LocalDate.now())) {
+            throw new BadRequestException("Cannot create rate card with past expiry date");
+        }
+
+        if (dto.getWeightSlab() == null || dto.getWeightSlab().isBlank()) {
+            throw new BadRequestException("Weight slab is required");
+        }
+
+        if (dto.getEffectiveDate() == null) {
+            throw new BadRequestException("Effective date is required");
+        }
+
+        if (dto.getExpiryDate() == null) {
+            throw new BadRequestException("Expiry date is required");
+        }
+        
+        boolean activeRateCardExists =
+                rateCardRepository.existsByCarrier_CarrierIdAndRoute_RouteIdAndStatus(
+                        carrier.getCarrierId(),
+                        route.getRouteId(),
+                        RateCardStatus.ACTIVE
+                );
+
+        if (activeRateCardExists) {
+            throw new BadRequestException(
+                    "Active rate card already exists for carrierId: "
+                            + carrier.getCarrierId()
+                            + " and routeId: "
+                            + route.getRouteId()
             );
         }
 
